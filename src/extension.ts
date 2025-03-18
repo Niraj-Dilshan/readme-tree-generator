@@ -18,6 +18,12 @@ export function activate(context: vscode.ExtensionContext): void {
     context.subscriptions.push(generateTreeCommand, generateMarkdownTreeCommand);
 }
 
+interface TreeGenerationOptions {
+    maxDepth: number;
+    includeFiles: boolean;
+    action: 'Copy to clipboard' | 'Insert at cursor position' | 'Create new file';
+}
+
 async function generateTree(format: 'ascii' | 'markdown'): Promise<void> {
     try {
         // Get workspace folder
@@ -36,24 +42,13 @@ async function generateTree(format: 'ascii' | 'markdown'): Promise<void> {
         const defaultMaxDepth: number = config.get('maxDepth', -1);
         const useMarkdownFormat: boolean = config.get('useMarkdownFormat', false);
 
-		// Ask user for max depth
-		const maxDepthInput = await vscode.window.showInputBox({
-			placeHolder: 'Maximum folder depth to display (enter -1 for unlimited)',
-			prompt: 'Controls how many levels deep the tree will go. 0 = root only, 1 = root and children, etc.',
-			value: defaultMaxDepth.toString(),
-			validateInput: (value) => {
-			const num = parseInt(value);
-			return isNaN(num) ? 'Please enter a valid number' : null;
-			}
-		});
+        // Get all user inputs in one go
+        const options = await collectInputs(defaultMaxDepth);
+        if (!options) {
+            return; // User canceled
+        }
         
-        const maxDepth = maxDepthInput ? parseInt(maxDepthInput) : defaultMaxDepth;
-        
-        // Ask user whether to include files
-        const includeFiles = await vscode.window.showQuickPick(
-            ['Yes', 'No'],
-            { placeHolder: 'Include files in tree? (Default: Yes)' }
-        ) !== 'No';
+        const { maxDepth, includeFiles, action } = options;
 
         // Generate the tree
         let treeOutput: string;
@@ -72,13 +67,7 @@ async function generateTree(format: 'ascii' | 'markdown'): Promise<void> {
             treeOutput = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth, includeFiles);
         }
 
-        // Ask user what to do with the tree
-        const action = await vscode.window.showQuickPick([
-            'Copy to clipboard', 
-            'Insert at cursor position', 
-            'Create new file'
-        ], { placeHolder: 'What would you like to do with the generated tree?' });
-
+        // Handle the selected action
         if (action === 'Copy to clipboard') {
             await vscode.env.clipboard.writeText(treeOutput);
             vscode.window.showInformationMessage('Tree structure copied to clipboard');
@@ -115,4 +104,114 @@ async function generateTree(format: 'ascii' | 'markdown'): Promise<void> {
     }
 }
 
-export function deactivate(): void {}
+async function collectInputs(defaultMaxDepth: number): Promise<TreeGenerationOptions | undefined> {
+    interface InputBoxParameters {
+        title: string;
+        step: number;
+        totalSteps: number;
+        value: string;
+        prompt: string;
+        validate: (value: string) => string | undefined;
+        buttons?: vscode.QuickInputButton[];
+        shouldResume?: () => Promise<boolean>;
+    }
+    
+    const title = 'Tree Generation Options';
+    
+    async function showInputBox({ title, step, totalSteps, value, prompt, validate }: InputBoxParameters) {
+        const disposables: vscode.Disposable[] = [];
+        try {
+            return await new Promise<string | undefined>((resolve, reject) => {
+                const input = vscode.window.createInputBox();
+                input.title = title;
+                input.step = step;
+                input.totalSteps = totalSteps;
+                input.value = value || '';
+                input.prompt = prompt;
+                input.buttons = [];
+                
+                let validating = validate('');
+                disposables.push(
+                    input.onDidAccept(async () => {
+                        const value = input.value;
+                        input.enabled = false;
+                        input.busy = true;
+                        if (validating) {
+                            input.validationMessage = validating;
+                        } else {
+                            resolve(value);
+                            input.hide();
+                        }
+                        input.enabled = true;
+                        input.busy = false;
+                    }),
+                    input.onDidChangeValue(async text => {
+                        validating = validate(text);
+                        input.validationMessage = validating;
+                    }),
+                    input.onDidHide(() => {
+                        resolve(undefined);
+                        input.dispose();
+                    })
+                );
+                
+                input.show();
+            });
+        } finally {
+            disposables.forEach(d => d.dispose());
+        }
+    }
+    
+    // Max depth input
+    const maxDepthStr = await showInputBox({
+        title,
+        step: 1,
+        totalSteps: 3,
+        value: defaultMaxDepth.toString(),
+        prompt: 'Maximum folder depth to display (enter -1 for unlimited)',
+        validate: (value: string) => {
+            const num = parseInt(value);
+            return isNaN(num) ? 'Please enter a valid number' : undefined;
+        }
+    });
+    
+    if (maxDepthStr === undefined) {
+        return undefined;
+    }
+    
+    // Include files selection
+    const includeFilesOptions = ['Yes', 'No'].map(label => ({ label }));
+    const includeFilesSelected = await vscode.window.showQuickPick(
+        includeFilesOptions,
+        {
+            title,
+            placeHolder: 'Include files in tree?'
+        }
+    );
+    
+    if (!includeFilesSelected) {
+        return undefined;
+    }
+    
+    const includeFiles = includeFilesSelected.label === 'Yes';
+    
+    // Action selection
+    const actionOptions = ['Copy to clipboard', 'Insert at cursor position', 'Create new file'].map(label => ({ label }));
+    const selectedAction = await vscode.window.showQuickPick(
+        actionOptions,
+        {
+            title,
+            placeHolder: 'What would you like to do with the generated tree?'
+        }
+    );
+    
+    if (!selectedAction) {
+        return undefined;
+    }
+    
+        return {
+            maxDepth: parseInt(maxDepthStr),
+            includeFiles,
+            action: selectedAction.label as 'Copy to clipboard' | 'Insert at cursor position' | 'Create new file'
+        };
+    }
