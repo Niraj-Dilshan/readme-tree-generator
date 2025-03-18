@@ -1,0 +1,66 @@
+{
+  "name": "readme-tree-generator",
+  "displayName": "README Tree Generator",
+  "description": "Generate folder structure tree for README files",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.98.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "readme-tree-generator.generateTree",
+        "title": "Generate ASCII Tree for README"
+      },
+      {
+        "command": "readme-tree-generator.generateMarkdownTree",
+        "title": "Generate Markdown Tree for README"
+      }
+    ],
+    "configuration": {
+      "title": "README Tree Generator",
+      "properties": {
+        "readmeTreeGenerator.format": {
+          "type": "string",
+          "default": "ascii",
+          "enum": ["ascii", "markdown"],
+          "description": "Default output format"
+        },
+        "readmeTreeGenerator.excludePatterns": {
+          "type": "array",
+          "default": ["node_modules", ".git", ".vscode"],
+          "description": "Glob patterns for files/folders to exclude"
+        },
+        "readmeTreeGenerator.maxDepth": {
+          "type": "number",
+          "default": -1,
+          "description": "Maximum folder depth to display (-1 for unlimited)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "pnpm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "pnpm run compile && pnpm run lint",
+"lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.98.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "20.x",
+    "@typescript-eslint/eslint-plugin": "^8.25.0",
+    "@typescript-eslint/parser": "^8.25.0",
+    "eslint": "^9.21.0",
+    "typescript": "^5.7.3",
+    "@vscode/test-cli": "^0.0.10",
+    "@vscode/test-electron": "^2.4.1"
+  }
+}
