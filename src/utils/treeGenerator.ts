@@ -26,13 +26,15 @@ function shouldExclude(name: string, excludePatterns: string[]): boolean {
  * @param rootName - Name to display for the root
  * @param excludePatterns - Patterns to exclude
  * @param maxDepth - Maximum depth to traverse (-1 for unlimited)
+ * @param includeFiles - Whether to include files in the output
  * @returns ASCII tree representation
  */
 function generateAsciiTree(
   rootPath: string,
   rootName: string,
   excludePatterns: string[] = [],
-  maxDepth: number = -1
+  maxDepth: number = -1,
+  includeFiles: boolean = true
 ): string {
   let result = `${rootName}/\n`;
 
@@ -48,6 +50,7 @@ function generateAsciiTree(
     const items = fs
       .readdirSync(dir, { withFileTypes: true })
       .filter((item) => !shouldExclude(item.name, excludePatterns))
+      .filter((item) => includeFiles || item.isDirectory())
       .sort((a, b) => {
         // Folders first, then files
         if (a.isDirectory() && !b.isDirectory()) {
@@ -88,13 +91,15 @@ function generateAsciiTree(
  * @param rootName - Name to display for the root
  * @param excludePatterns - Patterns to exclude
  * @param maxDepth - Maximum depth to traverse (-1 for unlimited)
+ * @param includeFiles - Whether to include files in the output
  * @returns Markdown tree representation
  */
 function generateMarkdownTree(
   rootPath: string,
   rootName: string,
   excludePatterns: string[] = [],
-  maxDepth: number = -1
+  maxDepth: number = -1,
+  includeFiles: boolean = true
 ): string {
   let result = `- ${rootName}/\n`;
 
@@ -110,6 +115,7 @@ function generateMarkdownTree(
     const items = fs
       .readdirSync(dir, { withFileTypes: true })
       .filter((item) => !shouldExclude(item.name, excludePatterns))
+      .filter((item) => includeFiles || item.isDirectory())
       .sort((a, b) => {
         // Folders first, then files
         if (a.isDirectory() && !b.isDirectory()) {

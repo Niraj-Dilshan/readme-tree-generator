@@ -33,24 +33,43 @@ async function generateTree(format: 'ascii' | 'markdown'): Promise<void> {
         // Get settings
         const config = vscode.workspace.getConfiguration('readmeTreeGenerator');
         const excludePatterns: string[] = config.get('excludePatterns', ['node_modules', '.git', '.vscode']);
-        const maxDepth: number = config.get('maxDepth', -1);
+        const defaultMaxDepth: number = config.get('maxDepth', -1);
         const useMarkdownFormat: boolean = config.get('useMarkdownFormat', false);
+
+		// Ask user for max depth
+		const maxDepthInput = await vscode.window.showInputBox({
+			placeHolder: 'Maximum folder depth to display (enter -1 for unlimited)',
+			prompt: 'Controls how many levels deep the tree will go. 0 = root only, 1 = root and children, etc.',
+			value: defaultMaxDepth.toString(),
+			validateInput: (value) => {
+			const num = parseInt(value);
+			return isNaN(num) ? 'Please enter a valid number' : null;
+			}
+		});
+        
+        const maxDepth = maxDepthInput ? parseInt(maxDepthInput) : defaultMaxDepth;
+        
+        // Ask user whether to include files
+        const includeFiles = await vscode.window.showQuickPick(
+            ['Yes', 'No'],
+            { placeHolder: 'Include files in tree? (Default: Yes)' }
+        ) !== 'No';
 
         // Generate the tree
         let treeOutput: string;
         if (format === 'markdown') {
             // Generate ASCII tree by default
-            const asciiTree = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth);
+            const asciiTree = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth, includeFiles);
             
             if (useMarkdownFormat) {
                 // Use explicit Markdown formatting (links, bullets, etc.) only if specified
-                treeOutput = generateMarkdownTree(rootPath, rootFolderName, excludePatterns, maxDepth);
+                treeOutput = generateMarkdownTree(rootPath, rootFolderName, excludePatterns, maxDepth, includeFiles);
             } else {
                 // Default: Use ASCII tree wrapped in markdown code block
                 treeOutput = '```\n' + asciiTree + '\n```';
             }
         } else {
-            treeOutput = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth);
+            treeOutput = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth, includeFiles);
         }
 
         // Ask user what to do with the tree
