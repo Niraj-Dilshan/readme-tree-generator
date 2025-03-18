@@ -34,11 +34,21 @@ async function generateTree(format: 'ascii' | 'markdown'): Promise<void> {
         const config = vscode.workspace.getConfiguration('readmeTreeGenerator');
         const excludePatterns: string[] = config.get('excludePatterns', ['node_modules', '.git', '.vscode']);
         const maxDepth: number = config.get('maxDepth', -1);
+        const useMarkdownFormat: boolean = config.get('useMarkdownFormat', false);
 
         // Generate the tree
         let treeOutput: string;
         if (format === 'markdown') {
-            treeOutput = generateMarkdownTree(rootPath, rootFolderName, excludePatterns, maxDepth);
+            // Generate ASCII tree by default
+            const asciiTree = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth);
+            
+            if (useMarkdownFormat) {
+                // Use explicit Markdown formatting (links, bullets, etc.) only if specified
+                treeOutput = generateMarkdownTree(rootPath, rootFolderName, excludePatterns, maxDepth);
+            } else {
+                // Default: Use ASCII tree wrapped in markdown code block
+                treeOutput = '```\n' + asciiTree + '\n```';
+            }
         } else {
             treeOutput = generateAsciiTree(rootPath, rootFolderName, excludePatterns, maxDepth);
         }

@@ -61,14 +61,6 @@ This extension contributes the following settings:
 
 Initial release of README Tree Generator with basic ASCII and Markdown tree generation.
 
-### 1.0.1
-
-Fixed issue with handling special characters in file paths.
-
-### 1.1.0
-
-Added settings for customizing excluded files and maximum depth.
-
 ---
 
 ## Following extension guidelines
